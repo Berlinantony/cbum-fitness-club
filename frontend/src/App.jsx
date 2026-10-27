@@ -12,6 +12,31 @@ const API_URL = `${API_BASE_URL}/api/auth`;
 const MEMBERSHIP_API_URL = `${API_BASE_URL}/api/membership`;
 const PAYMENTS_API_URL = `${API_BASE_URL}/api/payments`;
 
+async function readApiResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  const responseText = await response.text();
+
+  if (!contentType.includes("application/json")) {
+    if (response.status === 404) {
+      throw new Error(
+        "API endpoint not found (404). Check the Vercel backend service routing and redeploy."
+      );
+    }
+
+    throw new Error(
+      `The server returned a non-JSON response (HTTP ${response.status}).`
+    );
+  }
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    throw new Error(
+      `The server returned invalid JSON (HTTP ${response.status}).`
+    );
+  }
+}
+
 const plans = [
   {
     name: "MONTHLY",
@@ -114,7 +139,7 @@ function AdminDashboard({ user, onLogout, onHome }) {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });
-        const data = await response.json();
+        const data = await readApiResponse(response);
 
         if (!response.ok) {
           throw new Error(data.message || "Unable to load member accounts.");
@@ -155,7 +180,7 @@ function AdminDashboard({ user, onLogout, onHome }) {
           signal: controller.signal,
         });
 
-        const data = await response.json();
+        const data = await readApiResponse(response);
 
         if (!response.ok) {
           throw new Error(data.message || "Unable to load payments.");
@@ -233,7 +258,7 @@ function AdminDashboard({ user, onLogout, onHome }) {
         }
       );
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Unable to update member.");
@@ -283,7 +308,7 @@ function AdminDashboard({ user, onLogout, onHome }) {
         }
       );
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Unable to delete member.");
@@ -339,7 +364,7 @@ function AdminDashboard({ user, onLogout, onHome }) {
         }
       );
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Unable to assign membership.");
@@ -403,7 +428,7 @@ function AdminDashboard({ user, onLogout, onHome }) {
         }),
       });
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Unable to record payment.");
@@ -987,7 +1012,7 @@ function MemberDashboard({ user, onLogout, onHome }) {
             signal: controller.signal,
           }
         );
-        const data = await response.json();
+        const data = await readApiResponse(response);
 
         if (!response.ok) {
           throw new Error(data.message || "Unable to load membership details.");
@@ -1031,7 +1056,7 @@ function MemberDashboard({ user, onLogout, onHome }) {
         },
         body: JSON.stringify({ membershipPlan: planName }),
       });
-      const data = await response.json();
+      const data = await readApiResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Unable to select this plan.");
@@ -1222,7 +1247,7 @@ function App() {
         }),
       });
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Registration failed.");
@@ -1265,7 +1290,7 @@ function App() {
         }),
       });
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
 
       if (!response.ok) {
         throw new Error(data.message || "Login failed.");
