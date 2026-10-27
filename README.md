@@ -91,10 +91,11 @@ Example:
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
+MONGO_DB_NAME=gym_membership_db
 JWT_SECRET=your_long_random_secret
 ```
 
-Use the exact variable names expected by your application. Replace the example values with your own configuration. Never commit real credentials or secrets.
+The backend defaults to the `gym_membership_db` database if `MONGO_DB_NAME` is omitted. Replace the example values with your own configuration. Never commit real credentials or secrets.
 
 Start the backend using a script defined in `backend/package.json`. For example, if the project defines a `start` script:
 
@@ -114,7 +115,21 @@ npm run dev
 
 Open the local URL printed by Vite in your terminal.
 
-Keep the backend running while using the frontend. Ensure the frontend API configuration points to the correct backend URL.
+The frontend uses `VITE_API_URL` as the backend base URL. For local development, copy `frontend/.env.example` to `frontend/.env.local`; the example points to `http://localhost:5000`. Keep the backend running while using the frontend.
+
+### Deploy to Render
+
+1. Deploy `backend` as a Render Web Service with build command `npm install` and start command `node server.js`. Set `MONGO_URI`, `MONGO_DB_NAME`, and `JWT_SECRET` in the service's environment settings.
+2. Deploy `frontend` as a Render Static Site with build command `npm install && npm run build` and publish directory `dist`.
+3. In the frontend Static Site's environment settings, add `VITE_API_URL` with the full backend service URL, for example `https://your-backend.onrender.com` (no trailing slash).
+4. Trigger a new frontend deployment after setting or changing `VITE_API_URL`. Vite embeds this value during the build, so changing the variable without rebuilding does not update the deployed site.
+
+### Deploy to Vercel
+
+1. Import the repository into Vercel and set the project's **Root Directory** to `.` (the repository root), not `frontend` or `backend`, so Vercel reads the root `vercel.json`.
+2. The root `vercel.json` configures the `backend` Express service and the `frontend` Vite service under one project and domain. Requests to `/api/*` are routed to the backend; all other paths are routed to the frontend.
+3. Set `MONGO_URI`, `MONGO_DB_NAME`, and `JWT_SECRET` in Vercel's environment settings for the backend service. The MongoDB Atlas cluster must allow connections from the deployed backend.
+4. Deploy the project. The frontend uses same-origin `/api` requests in production, so `VITE_API_URL` should not be set for this Vercel multi-service deployment.
 
 ## Testing
 

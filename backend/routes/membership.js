@@ -4,6 +4,11 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 const router = express.Router();
+const planDurations = {
+  MONTHLY: 1,
+  QUARTERLY: 3,
+  YEARLY: 12,
+};
 
 function requireAdmin(req, res, next) {
   if (!process.env.JWT_SECRET) {
@@ -89,12 +94,6 @@ router.put("/assign/:memberId", requireAdmin, async (req, res) => {
       });
     }
 
-    const planDurations = {
-      MONTHLY: 1,
-      QUARTERLY: 3,
-      YEARLY: 12,
-    };
-
     if (!Object.hasOwn(planDurations, membershipPlan)) {
       return res.status(400).json({
         message: "Choose a valid membership plan.",
@@ -142,6 +141,96 @@ router.put("/assign/:memberId", requireAdmin, async (req, res) => {
 
     return res.status(500).json({
       message: "Unable to assign membership.",
+    });
+  }
+});
+
+router.post("/select", async (req, res) => {
+  try {
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({
+        message: "Server configuration error.",
+      });
+    }
+
+    const [scheme, token, ...extraParts] = (
+      req.get("authorization") || ""
+    ).trim().split(/\s+/);
+
+    if (
+      scheme?.toLowerCase() !== "bearer" ||
+      !token ||
+      extraParts.length > 0
+    ) {
+      return res.status(401).json({
+        message: "A valid authorization token is required.",
+      });
+    }
+
+    let payload;
+
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({
+        message: "A valid authorization token is required.",
+      });
+    }
+
+    if (
+      !payload ||
+      typeof payload === "string" ||
+      typeof payload.id !== "string" ||
+      !/^[a-f\d]{24}$/i.test(payload.id)
+    ) {
+      return res.status(401).json({
+        message: "Invalid authorization token.",
+      });
+    }
+
+    const member = await User.findOne({
+      _id: payload.id,
+      role: "member",
+    });
+
+    if (!member) {
+      return res.status(404).json({
+        message: "Member account not found.",
+      });
+    }
+
+    const { membershipPlan } = req.body;
+
+    if (!Object.hasOwn(planDurations, membershipPlan)) {
+      return res.status(400).json({
+        message: "Choose a valid membership plan.",
+      });
+    }
+
+    const startDate = new Date();
+    const expiryDate = addMonths(
+      startDate,
+      planDurations[membershipPlan]
+    );
+
+    member.membershipPlan = membershipPlan;
+    member.membershipStartDate = startDate;
+    member.membershipExpiryDate = expiryDate;
+    member.membershipStatus = "Active";
+    await member.save();
+
+    return res.json({
+      message: "Membership plan selected successfully.",
+      membershipPlan: member.membershipPlan,
+      membershipStartDate: member.membershipStartDate,
+      membershipExpiryDate: member.membershipExpiryDate,
+      membershipStatus: member.membershipStatus,
+    });
+  } catch (error) {
+    console.error("Member plan selection error:", error.message);
+
+    return res.status(500).json({
+      message: "Unable to select membership plan.",
     });
   }
 });

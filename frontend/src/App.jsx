@@ -4,9 +4,13 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "./style.css";
 
-const API_URL = "http://localhost:5000/api/auth";
-const MEMBERSHIP_API_URL = "http://localhost:5000/api/membership";
-const PAYMENTS_API_URL = "http://localhost:5000/api/payments";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? "http://localhost:5000" : "")
+).replace(/\/+$/, "");
+const API_URL = `${API_BASE_URL}/api/auth`;
+const MEMBERSHIP_API_URL = `${API_BASE_URL}/api/membership`;
+const PAYMENTS_API_URL = `${API_BASE_URL}/api/payments`;
 
 const plans = [
   {
@@ -322,7 +326,7 @@ function AdminDashboard({ user, onLogout, onHome }) {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/membership/assign/${selectedMemberId}`,
+        `${MEMBERSHIP_API_URL}/assign/${selectedMemberId}`,
         {
           method: "PUT",
           headers: {
@@ -963,6 +967,9 @@ function MemberDashboard({ user, onLogout, onHome }) {
   const [membership, setMembership] = useState(null);
   const [membershipLoading, setMembershipLoading] = useState(true);
   const [membershipError, setMembershipError] = useState("");
+  const [selectingPlan, setSelectingPlan] = useState("");
+  const [planMessage, setPlanMessage] = useState("");
+  const [planError, setPlanError] = useState("");
   const token = localStorage.getItem("cbToken");
 
   useEffect(() => {
@@ -1008,6 +1015,41 @@ function MemberDashboard({ user, onLogout, onHome }) {
 
   function formatMembershipDate(date) {
     return date ? new Date(date).toLocaleDateString() : "—";
+  }
+
+  async function selectPlan(planName) {
+    setSelectingPlan(planName);
+    setPlanMessage("");
+    setPlanError("");
+
+    try {
+      const response = await fetch(`${MEMBERSHIP_API_URL}/select`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ membershipPlan: planName }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to select this plan.");
+      }
+
+      setMembership(data);
+      setPlanMessage(
+        `${planName} membership is active. Payment is not collected here.`
+      );
+    } catch (error) {
+      setPlanError(
+        error.message === "Failed to fetch"
+          ? "Cannot connect to the backend. Check that the server is running."
+          : error.message
+      );
+    } finally {
+      setSelectingPlan("");
+    }
   }
 
   return (
@@ -1070,6 +1112,18 @@ function MemberDashboard({ user, onLogout, onHome }) {
         </div>
 
         <h2 className="mt-5 mb-3">Available Membership Plans</h2>
+        <p>Selecting a plan activates it immediately. Payment is not collected here.</p>
+
+        {planMessage && (
+          <div className="alert alert-success" role="status">
+            {planMessage}
+          </div>
+        )}
+        {planError && (
+          <div className="alert alert-danger" role="alert">
+            {planError}
+          </div>
+        )}
 
         <div className="row g-4">
           {plans.map((plan) => (
@@ -1086,10 +1140,12 @@ function MemberDashboard({ user, onLogout, onHome }) {
                 </ul>
                 <button
                   className="btn btn-outline-dark"
-                  disabled
-                  title="Membership selection will be added in a later phase"
+                  onClick={() => selectPlan(plan.name)}
+                  disabled={Boolean(selectingPlan)}
                 >
-                  Select Plan (Coming Next)
+                  {selectingPlan === plan.name
+                    ? "Activating..."
+                    : `Select ${plan.name}`}
                 </button>
               </div>
             </div>

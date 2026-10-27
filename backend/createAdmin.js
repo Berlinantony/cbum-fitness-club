@@ -3,6 +3,7 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const User = require("./models/User");
+const databaseName = process.env.MONGO_DB_NAME || "gym_membership_db";
 
 async function createAdmin() {
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
@@ -14,7 +15,7 @@ async function createAdmin() {
     );
   }
 
-  await mongoose.connect(process.env.MONGO_URI);
+  await mongoose.connect(process.env.MONGO_URI, { dbName: databaseName });
 
   try {
     const existingAdmin = await User.findOne({ email });
