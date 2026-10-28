@@ -2,8 +2,12 @@
   "name": "cbum-fitness-club",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
-    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "build": "npm --workspace=frontend run build",
     "start": "node backend/server.js"
   },
   "dependencies": {
