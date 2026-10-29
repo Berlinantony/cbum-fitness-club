@@ -4,6 +4,8 @@ const cors = require("cors");
 const authRoutes = require("./routes/auth");
 const membershipRoutes = require("./routes/membership");
 const paymentRoutes = require("./routes/payment");
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 require("dotenv").config();
 
 const app = express();
